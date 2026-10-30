@@ -38,7 +38,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <header className="top glass enter">
           <Link to="/" className="brand" aria-label="NightShift — panel">
             <span className="brand-mark"><Icon name="martini" size={18} /></span>
-            <span className="brand-text"><b>NIGHT</b>SHIFT</span>
+            <span className="brand-text"><b>La</b>Pose</span>
           </Link>
 
           <nav className="seg nav" style={sv({ '--i': active, '--n': items.length })}>
