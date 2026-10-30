@@ -102,7 +102,7 @@ export default function AuthPage() {
       <form className="glass card auth" onSubmit={submit} noValidate>
         <div className="auth-logo">
           <span className="brand-mark lg"><Icon name="martini" size={26} /></span>
-          <h1>NIGHTSHIFT</h1>
+          <h1>LaPose</h1>
           <p>Grafik zmian barmanów</p>
         </div>
 
