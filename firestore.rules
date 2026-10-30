@@ -1,0 +1,95 @@
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+
+      function signedIn() {
+        return request.auth != null;
+      }
+
+      function isManager() {
+        return signedIn()
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager';
+      }
+
+      function validName(v) {
+        return v is string && v.size() > 0 && v.size() <= 50;
+      }
+
+      // ---------- Пользователи ----------
+      match /users/{uid} {
+        allow read: if signedIn() && (request.auth.uid == uid || isManager());
+
+        // Самостоятельно создать можно только профиль бармена
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['firstName', 'lastName', 'email', 'role', 'createdAt'])
+          && request.resource.data.role == 'bartender'
+          && validName(request.resource.data.firstName)
+          && validName(request.resource.data.lastName);
+
+        // Менять можно только своё имя и фамилию, роль неизменна
+        allow update: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firstName', 'lastName'])
+          && validName(request.resource.data.firstName)
+          && validName(request.resource.data.lastName);
+
+        allow delete: if false;
+      }
+
+      // ---------- Настройки клуба ----------
+      match /settings/{docId} {
+        allow read: if signedIn();
+        allow write: if isManager();
+      }
+
+      // ---------- Даты, открытые для заявок ----------
+      match /dates/{date} {
+        allow read: if signedIn();
+        allow write: if isManager();
+      }
+
+      // ---------- Заявки барменов ----------
+      match /availability/{docId} {
+        allow read: if signedIn()
+          && (isManager() || resource.data.uid == request.auth.uid);
+
+        // Только на себя, только на открытую дату, id документа = дата_uid
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['date', 'uid', 'createdAt'])
+          && request.resource.data.date is string
+          && request.resource.data.uid == request.auth.uid
+          && docId == request.resource.data.date + '_' + request.auth.uid
+          && exists(/databases/$(database)/documents/dates/$(request.resource.data.date))
+          && get(/databases/$(database)/documents/dates/$(request.resource.data.date)).data.open == true;
+
+        // Отозвать свою заявку можно, пока дата открыта; менеджер может удалять любые
+        allow delete: if signedIn()
+          && (isManager()
+            || (resource.data.uid == request.auth.uid
+                && get(/databases/$(database)/documents/dates/$(resource.data.date)).data.open == true));
+
+        allow update: if false;
+      }
+
+      // ---------- Расписание ----------
+      match /schedules/{date} {
+        // Бармен видит только опубликованное, черновики видит менеджер
+        allow read: if signedIn()
+          && (isManager() || resource.data.status == 'published');
+
+        // Новые записи — только черновики
+        allow create: if isManager() && request.resource.data.status == 'draft';
+
+        // Опубликованное расписание нельзя править: только снять с публикации (меняется лишь status)
+        allow update: if isManager() && (
+          resource.data.status == 'draft'
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        );
+
+        allow delete: if isManager() && resource.data.status == 'draft';
+      }
+    }
+  }
