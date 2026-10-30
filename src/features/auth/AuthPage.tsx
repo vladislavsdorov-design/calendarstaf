@@ -137,7 +137,7 @@ export default function AuthPage() {
           <button type="button" className="btn link" onClick={reset}>Nie pamiętasz hasła?</button>
         )}
       </form>
-      <p className="foot">© {new Date().getFullYear()} NIGHTSHIFT MANAGER</p>
+      <p className="foot">© {new Date().getFullYear()} LaPose</p>
     </div>
   )
 }
